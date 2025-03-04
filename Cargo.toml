@@ -1,0 +1,21 @@
+[package]
+name = "macspu-accel-rs"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.77.2"
+license = "MIT"
+description = "Private macOS SPU accelerometer bridge via AppleSPUHIDDevice"
+readme = "README.md"
+documentation = "https://docs.rs/macspu-accel-rs"
+keywords = ["macos", "accelerometer", "spu", "hid", "apple"]
+categories = ["hardware-support", "os::macos-apis"]
+
+[lib]
+name = "macspu_accel_rs"
+path = "src/lib.rs"
+
+[build-dependencies]
+cc = "1"
+
+[package.metadata.docs.rs]
+targets = ["aarch64-apple-darwin"]
