@@ -1,29 +1,23 @@
 # macspu-accel-rs
 
-Rust crate exposing private macOS SPU accelerometer access through
-`AppleSPUHIDDevice`.
+Small Rust crate for the private macOS SPU accelerometer.
 
-## Warning
+## Requirements
 
-This uses private Apple interfaces and is not App Store safe.
+- macOS
+- Rust 1.77+
 
-## Build & Package
+## Build
 
 ```bash
 make check
 make package
-# cargo publish
 ```
 
-Packaged crate output:
-
-- `dist/macspu-accel-rs-<version>.crate`
-
-Standalone sensor probe:
+## Probe
 
 ```bash
 make probe
-# same as: cargo run --example probe
 ```
 
 ## Usage
@@ -36,3 +30,7 @@ if let Some(sample) = ring.read_new().last() {
     println!("{} {} {}", sample.x, sample.y, sample.z);
 }
 ```
+
+## Notes
+
+This uses private Apple interfaces and may break across macOS updates.
