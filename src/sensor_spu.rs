@@ -18,6 +18,7 @@ unsafe extern "C" {
   fn iokit_sensor_run();
   fn iokit_sensor_stop();
   fn iokit_ring_ptr() -> *const u8;
+  fn iokit_gyro_ring_ptr() -> *const u8;
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -28,8 +29,10 @@ pub struct SpuSample {
 }
 
 pub struct SpuSensorRing {
-  ring_ptr: *const u8,
-  last_total: u64,
+  accel_ring_ptr: *const u8,
+  gyro_ring_ptr: *const u8,
+  last_accel_total: u64,
+  last_gyro_total: u64,
   running: Arc<AtomicBool>,
   worker: Option<JoinHandle<()>>,
 }
@@ -39,15 +42,21 @@ unsafe impl Sync for SpuSensorRing {}
 
 impl SpuSensorRing {
   pub fn read_new(&mut self) -> Vec<SpuSample> {
-    let ring = self.ring_ptr;
+    Self::read_ring(self.accel_ring_ptr, &mut self.last_accel_total)
+  }
+
+  pub fn read_new_gyro(&mut self) -> Vec<SpuSample> {
+    Self::read_ring(self.gyro_ring_ptr, &mut self.last_gyro_total)
+  }
+
+  fn read_ring(ring: *const u8, last_total: &mut u64) -> Vec<SpuSample> {
     if ring.is_null() {
       return Vec::new();
     }
-
     unsafe {
       for _ in 0..3 {
         let total_before = u64::from_le_bytes(std::slice::from_raw_parts(ring.add(4), 8).try_into().unwrap());
-        let n_new = (total_before as i64 - self.last_total as i64).max(0) as usize;
+        let n_new = (total_before as i64 - *last_total as i64).max(0) as usize;
         if n_new == 0 {
           return Vec::new();
         }
@@ -71,7 +80,7 @@ impl SpuSensorRing {
 
         let total_after = u64::from_le_bytes(std::slice::from_raw_parts(ring.add(4), 8).try_into().unwrap());
         if total_after == total_before {
-          self.last_total = total_before;
+          *last_total = total_before;
           return samples;
         }
       }
@@ -123,13 +132,16 @@ pub fn start_spu_sensor() -> Result<SpuSensorRing, String> {
     .map_err(|err| format!("failed to spawn SPU sensor thread: {err}"))?;
 
   let ring_ptr = unsafe { iokit_ring_ptr() };
-  if ring_ptr.is_null() {
+  let gyro_ring_ptr = unsafe { iokit_gyro_ring_ptr() };
+  if ring_ptr.is_null() || gyro_ring_ptr.is_null() {
     return Err("SPU sensor ring pointer unavailable".to_string());
   }
 
   Ok(SpuSensorRing {
-    ring_ptr,
-    last_total: 0,
+    accel_ring_ptr: ring_ptr,
+    gyro_ring_ptr,
+    last_accel_total: 0,
+    last_gyro_total: 0,
     running,
     worker: Some(worker),
   })
